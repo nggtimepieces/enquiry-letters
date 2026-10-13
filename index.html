@@ -1002,7 +1002,24 @@ function matchSales(v){
   if (i < 0) i = find(norm(splitNote(v).name)); // "Anurak (Udon)" – drop the note, match "Anurak"
   return i;
 }
+// Snap an OCR'd model name to the Rolex collection it is closest to ("GMT-MASTER i" → "GMT-MASTER II"); keeps the case size.
+function snapModel(m){
+  const raw = (m||"").toUpperCase().replace(/[|]/g,"I").replace(/\s+/g," ").trim();
+  if (!raw) return m;
+  const size = (raw.match(/\b(\d{2})\s*(MM)?\b/)||[])[1];
+  const text = raw.replace(/\b\d{2}\s*(MM)?\b/g,"").replace(/\b[IL1]{1,3}\b\s*$/, t => "I".repeat(Math.max(1, t.trim().length))).trim();
+  const flat = t => t.replace(/[^A-Z0-9]/g,"");
+  const romanTail = /\b[IL1]{1,3}\s*$/i.test((m||"").replace(/\b\d{2}\s*(mm)?\b/gi,"").trim());
+  let best = null, bd = 99;
+  for (const c of COLLECTIONS){
+    const d = lev(flat(text), flat(c));
+    if (d < bd || (d === bd && romanTail && /\bII$/.test(c))) { bd = d; best = c; }
+  }
+  if (!best || bd > Math.max(1, Math.floor(flat(best).length / 4))) return m;   // too far: leave it for the checks box
+  return best + (size ? " " + size : "");
+}
 function applyFields(o, replace = true){
+  if (o.model) o.model = snapModel(o.model);
   if (replace) ["name","email","mobile","model","ref"].forEach(id => $(id).value = "");
   const code = (!o.masterCode || /^other|อื่น/i.test(o.masterCode)) ? (o.otherCode||o.masterCode||"") : o.masterCode;
   if (o.name) $("name").value = o.name.trim();
